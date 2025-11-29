@@ -75,7 +75,7 @@ const SnowBackground = () => (
   </div>
 );
 
-// ปุ่มเปิด-ปิดเสียง
+// ปุ่มเปิด-ปิดเสียง (ย้ายมาไว้ข้างนอกให้ถูกต้อง)
 const SoundToggle = ({ isSoundOn, onToggle }) => (
   <button 
     onClick={onToggle}
@@ -91,6 +91,7 @@ const SoundToggle = ({ isSoundOn, onToggle }) => (
 
 const MultiplicationGame = () => {
   // --- States ---
+  // เอา showWelcome ออกตามคำขอ
   const [gameState, setGameState] = useState('menu');
   const [selectedTable, setSelectedTable] = useState(null);
   const [question, setQuestion] = useState({ num1: 0, num2: 0, answers: [], correctAnswer: 0 });
@@ -111,10 +112,7 @@ const MultiplicationGame = () => {
     if (!AudioContext) return;
     
     const ctx = new AudioContext();
-    // Try to resume even if suspended (autoplay policy workaround attempt)
-    if (ctx.state === 'suspended') {
-        ctx.resume().catch(() => {});
-    }
+    if (ctx.state === 'suspended') ctx.resume();
 
     const now = ctx.currentTime;
 
@@ -160,66 +158,43 @@ const MultiplicationGame = () => {
             osc.start(now);
             osc.stop(now + 0.1);
         } else if (type === 'jingle') {
-            // 🎵 We Wish You a Merry Christmas
-            const C5 = 523.25;
-            const D5 = 587.33;
-            const E5 = 659.25;
-            const F5 = 698.46;
-            const G5 = 783.99;
-            const A5 = 880.00;
-            const Bb5 = 932.33; // Bb Note
-            const C6 = 1046.50;
-
+            // เพลง We Wish You a Merry Christmas
+            const C5 = 523.25, D5 = 587.33, E5 = 659.25, F5 = 698.46;
+            const G4 = 392.00, A4 = 440.00, B4 = 493.88;
             const melody = [
-                // We wish you a Merry Christmas
-                { f: C5, d: 0.4 }, 
-                { f: F5, d: 0.4 }, { f: F5, d: 0.2 }, { f: G5, d: 0.2 }, { f: F5, d: 0.2 }, { f: E5, d: 0.2 },
+                { f: C5, d: 0.4 }, { f: F5, d: 0.4 }, { f: F5, d: 0.2 }, { f: G4 * 2, d: 0.2 }, { f: F5, d: 0.2 }, { f: E5, d: 0.2 },
                 { f: D5, d: 0.4 }, { f: D5, d: 0.4 },
-                
-                // We wish you a Merry Christmas
-                { f: D5, d: 0.4 },
-                { f: G5, d: 0.4 }, { f: G5, d: 0.2 }, { f: A5, d: 0.2 }, { f: G5, d: 0.2 }, { f: F5, d: 0.2 },
+                { f: D5, d: 0.4 }, { f: G4 * 2, d: 0.4 }, { f: G4 * 2, d: 0.2 }, { f: A4 * 2, d: 0.2 }, { f: G4 * 2, d: 0.2 }, { f: F5, d: 0.2 },
                 { f: E5, d: 0.4 }, { f: C5, d: 0.4 },
-
-                // We wish you a Merry Christmas
-                { f: C5, d: 0.4 },
-                { f: A5, d: 0.4 }, { f: A5, d: 0.2 }, { f: Bb5, d: 0.2 }, { f: A5, d: 0.2 }, { f: G5, d: 0.2 },
+                { f: C5, d: 0.4 }, { f: A4 * 2, d: 0.4 }, { f: A4 * 2, d: 0.2 }, { f: B4 * 2, d: 0.2 }, { f: A4 * 2, d: 0.2 }, { f: G4 * 2, d: 0.2 },
                 { f: F5, d: 0.4 }, { f: D5, d: 0.4 },
-
-                // And a Happy New Year
-                { f: C5, d: 0.2 }, { f: C5, d: 0.2 },
-                { f: D5, d: 0.4 }, { f: G5, d: 0.4 }, { f: E5, d: 0.4 },
-                { f: F5, d: 0.8 } 
+                { f: C5, d: 0.2 }, { f: C5, d: 0.2 }, { f: D5, d: 0.4 }, { f: G4 * 2, d: 0.4 }, { f: E5, d: 0.4 }, { f: F5, d: 0.8 } 
             ];
-
             let startTime = now + 0.1;
-            
             melody.forEach(note => {
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
                 osc.connect(gain);
                 gain.connect(ctx.destination);
-
-                osc.type = 'triangle'; // Bell-like tone
+                osc.type = 'triangle';
                 osc.frequency.value = note.f;
-
                 osc.start(startTime);
                 gain.gain.setValueAtTime(0, startTime);
-                gain.gain.linearRampToValueAtTime(0.15, startTime + 0.05); // Attack
-                gain.gain.exponentialRampToValueAtTime(0.001, startTime + note.d); // Decay
+                gain.gain.linearRampToValueAtTime(0.15, startTime + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + note.d);
                 osc.stop(startTime + note.d);
-
                 startTime += note.d;
             });
         }
     } catch (e) { console.error(e); }
   }, [isSoundOn]);
 
-  // Attempt to play music immediately on mount
+  // เล่นเพลงทันทีเมื่อเข้าหน้าแรก
   useEffect(() => {
+    // พยายามเล่นเพลงเมื่อโหลด (อาจถูกบล็อกโดย Browser จนกว่าจะมีการคลิก)
     const timer = setTimeout(() => {
         playSound('jingle');
-    }, 500); // Small delay to ensure render is done
+    }, 1000); 
     return () => clearTimeout(timer);
   }, [playSound]);
 
@@ -317,7 +292,7 @@ const MultiplicationGame = () => {
     return { text: "ระดับ: ตุ๊กตาหิมะ ⛄", color: "text-slate-500" };
   };
 
-  // --- 3. Screen Components ---
+  // --- 3. Screen Components (Defined Inside Main to access state cleanly) ---
 
   const MenuScreen = () => (
     <div className="flex flex-col items-center w-full max-w-lg mx-auto p-6 space-y-8 animate-fade-in relative z-10">
