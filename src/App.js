@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Star, Gift, RefreshCw, Play, Home, Check, X, Book, ArrowLeft, Volume2, VolumeX, Snowflake, Trees, Sparkles, Bell, Music } from 'lucide-react';
 
 // ==========================================
-// 1. ส่วนประกอบตกแต่ง (Graphic Components)
+// 1. ส่วนประกอบตกแต่ง (Graphic Components) - วางไว้ข้างนอกเพื่อกัน Error
 // ==========================================
 
-// ลูกบอลคริสต์มาส
 const ChristmasBall = ({ color = "#EF4444", size = 40, className = "" }) => (
   <svg width={size} height={size} viewBox="0 0 40 40" fill="none" className={className}>
     <circle cx="20" cy="22" r="16" fill={color} />
@@ -15,7 +14,6 @@ const ChristmasBall = ({ color = "#EF4444", size = 40, className = "" }) => (
   </svg>
 );
 
-// หมวกซานต้า
 const SantaHat = ({ size = 40, className = "" }) => (
   <svg width={size} height={size} viewBox="0 0 40 40" fill="none" className={className}>
     <path d="M6 32C6 32 10 12 28 4" stroke="#EF4444" strokeWidth="0" fill="#EF4444" />
@@ -25,7 +23,6 @@ const SantaHat = ({ size = 40, className = "" }) => (
   </svg>
 );
 
-// ถุงเท้า
 const ChristmasSock = ({ size = 40, className = "" }) => (
   <svg width={size} height={size} viewBox="0 0 40 40" fill="none" className={className}>
     <path d="M12 2H28V20C28 20 28 34 18 34H10C6 34 6 28 10 24L12 22V2Z" fill="#EF4444" />
@@ -34,7 +31,6 @@ const ChristmasSock = ({ size = 40, className = "" }) => (
   </svg>
 );
 
-// หมวกปาร์ตี้
 const PartyHat = ({ size = 24, color = "currentColor", className = "" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <path d="M12 2L2 22h20L12 2z" fill={color} fillOpacity="0.2" />
@@ -45,7 +41,6 @@ const PartyHat = ({ size = 24, color = "currentColor", className = "" }) => (
     </svg>
 );
 
-// พื้นหลังหิมะ
 const SnowBackground = () => (
   <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
     <style>{`
@@ -75,10 +70,10 @@ const SnowBackground = () => (
   </div>
 );
 
-// ปุ่มเปิด-ปิดเสียง (ย้ายมาไว้ข้างนอกให้ถูกต้อง)
+// ปุ่มเปิด-ปิดเสียง (วางไว้ตรงนี้เพื่อให้ Main Component เรียกใช้ได้)
 const SoundToggle = ({ isSoundOn, onToggle }) => (
   <button 
-    onClick={onToggle}
+    onClick={(e) => { e.stopPropagation(); onToggle(); }}
     className="absolute top-4 right-4 p-3 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all z-50 text-[#165B33] border border-[#165B33]/20"
   >
     {isSoundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}
@@ -91,7 +86,6 @@ const SoundToggle = ({ isSoundOn, onToggle }) => (
 
 const MultiplicationGame = () => {
   // --- States ---
-  // เอา showWelcome ออกตามคำขอ
   const [gameState, setGameState] = useState('menu');
   const [selectedTable, setSelectedTable] = useState(null);
   const [question, setQuestion] = useState({ num1: 0, num2: 0, answers: [], correctAnswer: 0 });
@@ -103,16 +97,29 @@ const MultiplicationGame = () => {
   const [feedback, setFeedback] = useState(null);
   const [totalQuestions] = useState(20);
   const [isSoundOn, setIsSoundOn] = useState(true);
+  
+  // Audio Context Ref
+  const audioCtxRef = useRef(null);
 
   // --- Sound Engine ---
+  const getAudioContext = useCallback(() => {
+    if (!audioCtxRef.current) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            audioCtxRef.current = new AudioContext();
+        }
+    }
+    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume().catch(e => console.log("Audio resume failed", e));
+    }
+    return audioCtxRef.current;
+  }, []);
+
   const playSound = useCallback((type) => {
     if (!isSoundOn) return;
     
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    
-    const ctx = new AudioContext();
-    if (ctx.state === 'suspended') ctx.resume();
+    const ctx = getAudioContext();
+    if (!ctx) return;
 
     const now = ctx.currentTime;
 
@@ -158,18 +165,21 @@ const MultiplicationGame = () => {
             osc.start(now);
             osc.stop(now + 0.1);
         } else if (type === 'jingle') {
-            // เพลง We Wish You a Merry Christmas
+            // We Wish You a Merry Christmas Melody
             const C5 = 523.25, D5 = 587.33, E5 = 659.25, F5 = 698.46;
             const G4 = 392.00, A4 = 440.00, B4 = 493.88;
+            const G5 = 783.99, A5 = 880.00, Bb5 = 932.33;
+
             const melody = [
-                { f: C5, d: 0.4 }, { f: F5, d: 0.4 }, { f: F5, d: 0.2 }, { f: G4 * 2, d: 0.2 }, { f: F5, d: 0.2 }, { f: E5, d: 0.2 },
+                { f: C5, d: 0.4 }, { f: F5, d: 0.4 }, { f: F5, d: 0.2 }, { f: G5, d: 0.2 }, { f: F5, d: 0.2 }, { f: E5, d: 0.2 },
                 { f: D5, d: 0.4 }, { f: D5, d: 0.4 },
-                { f: D5, d: 0.4 }, { f: G4 * 2, d: 0.4 }, { f: G4 * 2, d: 0.2 }, { f: A4 * 2, d: 0.2 }, { f: G4 * 2, d: 0.2 }, { f: F5, d: 0.2 },
+                { f: D5, d: 0.4 }, { f: G5, d: 0.4 }, { f: G5, d: 0.2 }, { f: A5, d: 0.2 }, { f: G5, d: 0.2 }, { f: F5, d: 0.2 },
                 { f: E5, d: 0.4 }, { f: C5, d: 0.4 },
-                { f: C5, d: 0.4 }, { f: A4 * 2, d: 0.4 }, { f: A4 * 2, d: 0.2 }, { f: B4 * 2, d: 0.2 }, { f: A4 * 2, d: 0.2 }, { f: G4 * 2, d: 0.2 },
+                { f: C5, d: 0.4 }, { f: A5, d: 0.4 }, { f: A5, d: 0.2 }, { f: Bb5, d: 0.2 }, { f: A5, d: 0.2 }, { f: G5, d: 0.2 },
                 { f: F5, d: 0.4 }, { f: D5, d: 0.4 },
-                { f: C5, d: 0.2 }, { f: C5, d: 0.2 }, { f: D5, d: 0.4 }, { f: G4 * 2, d: 0.4 }, { f: E5, d: 0.4 }, { f: F5, d: 0.8 } 
+                { f: C5, d: 0.2 }, { f: C5, d: 0.2 }, { f: D5, d: 0.4 }, { f: G5, d: 0.4 }, { f: E5, d: 0.4 }, { f: F5, d: 0.8 } 
             ];
+
             let startTime = now + 0.1;
             melody.forEach(note => {
                 const osc = ctx.createOscillator();
@@ -180,23 +190,30 @@ const MultiplicationGame = () => {
                 osc.frequency.value = note.f;
                 osc.start(startTime);
                 gain.gain.setValueAtTime(0, startTime);
-                gain.gain.linearRampToValueAtTime(0.15, startTime + 0.05);
+                gain.gain.linearRampToValueAtTime(0.1, startTime + 0.05);
                 gain.gain.exponentialRampToValueAtTime(0.001, startTime + note.d);
                 osc.stop(startTime + note.d);
                 startTime += note.d;
             });
         }
     } catch (e) { console.error(e); }
-  }, [isSoundOn]);
+  }, [isSoundOn, getAudioContext]);
 
-  // เล่นเพลงทันทีเมื่อเข้าหน้าแรก
+  // Global click handler to resume audio context if blocked
   useEffect(() => {
-    // พยายามเล่นเพลงเมื่อโหลด (อาจถูกบล็อกโดย Browser จนกว่าจะมีการคลิก)
-    const timer = setTimeout(() => {
-        playSound('jingle');
-    }, 1000); 
-    return () => clearTimeout(timer);
-  }, [playSound]);
+    const handleUserGesture = () => {
+        const ctx = getAudioContext();
+        if (ctx && ctx.state === 'suspended') {
+            ctx.resume();
+        }
+    };
+    window.addEventListener('click', handleUserGesture);
+    window.addEventListener('touchstart', handleUserGesture);
+    return () => {
+        window.removeEventListener('click', handleUserGesture);
+        window.removeEventListener('touchstart', handleUserGesture);
+    };
+  }, [getAudioContext]);
 
   const handleSoundToggle = () => {
     setIsSoundOn(prev => {
@@ -276,7 +293,7 @@ const MultiplicationGame = () => {
       const nextCount = questionCount + 1;
       if (nextCount >= totalQuestions) {
           setGameState('summary');
-          playSound('jingle');
+          playSound('jingle'); // เล่นเพลงตอนจบเกมเท่านั้น
       } else {
         setQuestionCount(nextCount);
         const nextQ = questionQueue[nextCount];
@@ -292,11 +309,10 @@ const MultiplicationGame = () => {
     return { text: "ระดับ: ตุ๊กตาหิมะ ⛄", color: "text-slate-500" };
   };
 
-  // --- 3. Screen Components (Defined Inside Main to access state cleanly) ---
+  // --- Screen Components ---
 
   const MenuScreen = () => (
     <div className="flex flex-col items-center w-full max-w-lg mx-auto p-6 space-y-8 animate-fade-in relative z-10">
-      
       {/* Banner */}
       <div className="w-full relative mt-8 h-64 rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white/50 bg-[#C92B2B]">
         <div className="absolute top-[-40px] left-[-20px] right-[-20px] h-32 flex justify-between items-start opacity-90">
@@ -356,7 +372,7 @@ const MultiplicationGame = () => {
       </div>
 
       <div className="w-full space-y-3">
-        <button onClick={() => startGame(null)} className="w-full bg-gradient-to-r from-[#D42426] to-[#B91C1C] text-white text-xl font-bold py-4 rounded-2xl shadow-lg shadow-red-500/30 border-b-[4px] border-[#991B1B] hover:brightness-110 active:border-b-0 active:translate-y-1 transition-all flex items-center justify-center gap-3" style={{ fontFamily: 'Kanit' }}>
+        <button onClick={() => startGame(null)} className="w-full bg-[#D42426] hover:bg-[#B91C1C] text-white text-xl font-bold py-4 rounded-2xl shadow-lg border-b-[4px] border-[#991B1B] active:border-b-0 active:translate-y-1 transition-all flex items-center justify-center gap-3" style={{ fontFamily: 'Kanit' }}>
             <Gift size={28} className="animate-bounce" />
             <span>โหมดท้าทาย (สุ่มโจทย์)</span>
         </button>
