@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Star, Gift, RefreshCw, Play, Home, Check, X, Book, ArrowLeft, Volume2, VolumeX, Snowflake, Trees, Sparkles, Bell } from 'lucide-react';
 
 // --- Components defined OUTSIDE main function to prevent ReferenceErrors ---
@@ -32,7 +32,18 @@ const ChristmasSock = ({ size = 40, className = "" }) => (
   </svg>
 );
 
-// 4. Snow Background
+// 4. Party Hat
+const PartyHat = ({ size = 24, color = "currentColor", className = "" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M12 2L2 22h20L12 2z" fill={color} fillOpacity="0.2" />
+      <path d="M12 2L2 22h20L12 2z" />
+      <circle cx="12" cy="2" r="2" fill={color} />
+      <path d="M8.5 16a3.5 3.5 0 0 0 7 0" />
+      <path d="M7 12a5 5 0 0 0 10 0" />
+    </svg>
+);
+
+// 5. Snow Background
 const SnowBackground = () => (
   <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
     <style>{`
@@ -76,48 +87,128 @@ const MultiplicationGame = () => {
   const [totalQuestions] = useState(20);
   const [isSoundOn, setIsSoundOn] = useState(true);
 
-  // --- Sound System ---
-  const playSound = (type) => {
+  // --- Sound System (Improved with Christmas Melody) ---
+  const playSound = useCallback((type) => {
     if (!isSoundOn) return;
-    try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      
-      const now = ctx.currentTime;
+    
+    // Create AudioContext only on user interaction if possible, or resume it
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    
+    const ctx = new AudioContext();
+    
+    // Resume context if suspended (common browser policy)
+    if (ctx.state === 'suspended') {
+        ctx.resume();
+    }
 
-      if (type === 'correct') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(523.25, now);
-        osc.frequency.linearRampToValueAtTime(659.25, now + 0.1);
-        osc.frequency.linearRampToValueAtTime(783.99, now + 0.2);
-        osc.frequency.linearRampToValueAtTime(1046.50, now + 0.3);
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
-        osc.start(now);
-        osc.stop(now + 0.6);
-      } else if (type === 'wrong') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(150, now);
-        osc.frequency.linearRampToValueAtTime(100, now + 0.3);
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-        osc.start(now);
-        osc.stop(now + 0.3);
-      } else if (type === 'click') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(800, now);
-        gain.gain.setValueAtTime(0.05, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-        osc.start(now);
-        osc.stop(now + 0.1);
-      }
-    } catch (e) { console.error("Audio error", e); }
-  };
+    const now = ctx.currentTime;
+
+    try {
+        if (type === 'correct') {
+            // Happy ping (Triangle wave)
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(523.25, now); // C5
+            osc.frequency.linearRampToValueAtTime(659.25, now + 0.1); // E5
+            osc.frequency.linearRampToValueAtTime(783.99, now + 0.2); // G5
+            osc.frequency.linearRampToValueAtTime(1046.50, now + 0.3); // C6
+            
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.1, now + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+            
+            osc.start(now);
+            osc.stop(now + 0.6);
+        } else if (type === 'wrong') {
+            // Sad buzz (Sawtooth wave)
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.linearRampToValueAtTime(100, now + 0.3);
+            
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.1, now + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+            
+            osc.start(now);
+            osc.stop(now + 0.3);
+        } else if (type === 'click') {
+            // Soft click (Sine wave)
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, now);
+            
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.05, now + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+            
+            osc.start(now);
+            osc.stop(now + 0.1);
+        } else if (type === 'jingle') {
+            // 🎵 We Wish You a Merry Christmas Melody 🎵
+            // Note frequencies
+            const G4 = 392.00, A4 = 440.00, B4 = 493.88;
+            const C5 = 523.25, D5 = 587.33, E5 = 659.25, F5 = 698.46;
+
+            const melody = [
+                // We wish you a Merry Christmas
+                { f: C5, d: 0.4 }, 
+                { f: F5, d: 0.4 }, { f: F5, d: 0.2 }, { f: G4 * 2, d: 0.2 }, { f: F5, d: 0.2 }, { f: E5, d: 0.2 },
+                { f: D5, d: 0.4 }, { f: D5, d: 0.4 },
+                
+                // We wish you a Merry Christmas
+                { f: D5, d: 0.4 },
+                { f: G4 * 2, d: 0.4 }, { f: G4 * 2, d: 0.2 }, { f: A4 * 2, d: 0.2 }, { f: G4 * 2, d: 0.2 }, { f: F5, d: 0.2 },
+                { f: E5, d: 0.4 }, { f: C5, d: 0.4 },
+
+                // We wish you a Merry Christmas
+                { f: C5, d: 0.4 },
+                { f: A4 * 2, d: 0.4 }, { f: A4 * 2, d: 0.2 }, { f: B4 * 2, d: 0.2 }, { f: A4 * 2, d: 0.2 }, { f: G4 * 2, d: 0.2 },
+                { f: F5, d: 0.4 }, { f: D5, d: 0.4 },
+
+                // And a Happy New Year
+                { f: C5, d: 0.2 }, { f: C5, d: 0.2 },
+                { f: D5, d: 0.4 }, { f: G4 * 2, d: 0.4 }, { f: E5, d: 0.4 },
+                { f: F5, d: 0.8 } 
+            ];
+
+            let startTime = now + 0.1;
+            
+            melody.forEach(note => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.type = 'triangle'; // Bell-like tone
+                osc.frequency.value = note.f;
+
+                osc.start(startTime);
+                gain.gain.setValueAtTime(0, startTime);
+                gain.gain.linearRampToValueAtTime(0.15, startTime + 0.05); // Attack
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + note.d); // Decay
+                osc.stop(startTime + note.d);
+
+                startTime += note.d;
+            });
+        }
+    } catch (e) {
+        console.error("Audio playback error:", e);
+    }
+  }, [isSoundOn]);
 
   // --- Game Logic ---
   const createQuestionFromNumbers = (num1, num2) => {
@@ -173,23 +264,28 @@ const MultiplicationGame = () => {
 
   const handleAnswer = (answer) => {
     if (feedback) return;
+    
     if (answer === question.correctAnswer) {
-      playSound('correct');
+      playSound('correct'); // Play correct sound immediately
       setFeedback('correct');
       setScore(s => s + 10 + (streak * 2));
       const newStreak = streak + 1;
       setStreak(newStreak);
       if (newStreak > maxStreak) setMaxStreak(newStreak);
     } else {
-      playSound('wrong');
+      playSound('wrong'); // Play wrong sound immediately
       setFeedback('wrong');
       setStreak(0);
     }
+    
     setTimeout(() => {
       setFeedback(null);
       const nextCount = questionCount + 1;
-      if (nextCount >= totalQuestions) setGameState('summary');
-      else {
+      if (nextCount >= totalQuestions) {
+          setGameState('summary');
+          // 🎵 Play Christmas music when game ends 🎵
+          playSound('jingle');
+      } else {
         setQuestionCount(nextCount);
         const nextQ = questionQueue[nextCount];
         setQuestion(createQuestionFromNumbers(nextQ.num1, nextQ.num2));
@@ -206,7 +302,10 @@ const MultiplicationGame = () => {
 
   const SoundToggle = () => (
     <button 
-      onClick={() => setIsSoundOn(!isSoundOn)}
+      onClick={() => {
+          setIsSoundOn(!isSoundOn);
+          if (!isSoundOn) playSound('click'); // Test sound when enabling
+      }}
       className="absolute top-4 right-4 p-3 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all z-50 text-[#165B33] border border-[#165B33]/20"
     >
       {isSoundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}
@@ -424,7 +523,7 @@ const MultiplicationGame = () => {
       <div className="w-full flex justify-between items-center bg-white/95 backdrop-blur p-4 rounded-2xl shadow-lg border border-slate-100 mb-6 mt-6 relative z-20">
         <div className="flex items-center gap-2">
           <div className="bg-[#F8B229]/20 p-2 rounded-lg text-[#F8B229]">
-            <Star className="fill-current" size={20} />
+            <Star className="fill-current animate-wiggle" size={20} />
           </div>
           <span className="text-2xl font-bold text-slate-700" style={{ fontFamily: 'Kanit' }}>{score}</span>
         </div>
@@ -517,7 +616,7 @@ const MultiplicationGame = () => {
           <div className="absolute -inset-8 bg-[#F8B229]/20 rounded-full blur-3xl animate-pulse"></div>
           <Gift className="w-40 h-40 text-[#D42426] relative z-10 drop-shadow-2xl animate-bounce" />
           <div className="absolute -bottom-2 -right-2 bg-white rounded-full p-2 shadow-lg rotate-12">
-            <Star className="text-[#F8B229] fill-current w-10 h-10" />
+            <Star className="text-[#F8B229] fill-current w-10 h-10 animate-wiggle" />
           </div>
         </div>
 
@@ -564,7 +663,7 @@ const MultiplicationGame = () => {
 
   return (
     <div className="min-h-screen bg-[#FDF8EF] font-sans text-slate-800 flex items-center justify-center overflow-hidden relative selection:bg-[#F8B229] selection:text-white">
-      {/* Import Google Font 'Kanit' */}
+      {/* Import Google Font 'Kanit' & Animations */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800;900&display=swap');
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
@@ -575,6 +674,17 @@ const MultiplicationGame = () => {
         
         .animate-swing { animation: swing 3s ease-in-out infinite; transform-origin: top center; }
         @keyframes swing { 0% { transform: rotate(5deg); } 50% { transform: rotate(-5deg); } 100% { transform: rotate(5deg); } }
+        
+        /* New Wiggle Animation for Stars */
+        .animate-wiggle { animation: wiggle 2s ease-in-out infinite; }
+        @keyframes wiggle { 
+          0%, 100% { transform: rotate(-10deg); } 
+          50% { transform: rotate(10deg); } 
+        }
+        
+        /* Spin Animation for Snowflakes */
+        .animate-spin-slow { animation: spin 10s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
       
       {/* Ambient Background Gradient - Darker for contrast */}
